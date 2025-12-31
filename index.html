@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modul Ajar Generator - Design by Wiyanto</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#15803d',
+                        secondary: '#166534',
+                        accent: '#dcfce7',
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans', 'sans-serif'],
+                        serif: ['Times New Roman', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- HTML2PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* --- PREVIEW PAPER STYLING --- */
+        .paper-preview {
+            font-family: 'Times New Roman', serif;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            color: #000;
+            line-height: 1.25;
+            font-size: 11pt;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Print Override */
+        @media print {
+            body * { visibility: hidden; }
+            #modul-preview, #modul-preview * { visibility: visible; }
+            #modul-preview {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                margin: 0;
+                padding: 20mm !important;
+                box-shadow: none;
+                overflow: visible !important;
+            }
+            @page { size: A4; margin: 0; }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden text-gray-800">
+    <div id="root" class="h-full flex flex-col"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- INLINE STYLES (Agar Presisi saat Copy-Paste ke Word) ---
+        const tableStyle = {
+            width: '100%',
+            borderCollapse: 'collapse',
+            border: '1px solid #000000',
+            marginBottom: '15px',
+            fontFamily: '"Times New Roman", Times, serif',
+            fontSize: '11pt',
+            color: '#000000'
+        };
+
+        const thStyle = {
+            border: '1px solid #000000',
+            padding: '8px',
+            backgroundColor: '#d1d5db',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            textTransform: 'uppercase',
+            verticalAlign: 'middle',
+            color: '#000000'
+        };
+
+        const subHeaderStyle = {
+            border: '1px solid #000000',
+            padding: '6px',
+            backgroundColor: '#f3f4f6',
+            fontWeight: 'bold',
+            textAlign: 'left',
+            verticalAlign: 'top',
+            color: '#000000'
+        };
+
+        const tdLabelStyle = {
+            border: '1px solid #000000',
+            padding: '6px',
+            width: '30%',
+            fontWeight: 'bold',
+            textAlign: 'left',
+            verticalAlign: 'top',
+            color: '#000000'
+        };
+
+        const tdContentStyle = {
+            border: '1px solid #000000',
+            padding: '6px',
+            textAlign: 'left',
+            verticalAlign: 'top',
+            color: '#000000'
+        };
+
+        const rubricThStyle = {
+            border: '1px solid #000000',
+            padding: '4px',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            backgroundColor: '#e5e7eb',
+            verticalAlign: 'middle',
+            fontSize: '10pt',
+            color: '#000000'
+        };
+
+        const rubricTdStyle = {
+            border: '1px solid #000000',
+            padding: '4px',
+            textAlign: 'center',
+            verticalAlign: 'middle',
+            fontSize: '10pt',
+            color: '#000000'
+        };
+
+        // --- Logic AI Generator ---
+        const generateContentLogic = (type, data) => {
+            const topic = data.unit || "Materi Pelajaran";
+            
+            if (type === 'pemahamanBermakna') {
+                return `Manfaat pembelajaran ini adalah:\n` +
+                       `1. Peserta didik mampu mengidentifikasi ${topic}.\n` +
+                       `2. Peserta didik dapat menerapkan konsep ${topic} dalam keseharian.\n` +
+                       `3. Menumbuhkan rasa syukur atas keteraturan ciptaan Allah (${topic}).`;
+            }
+            if (type === 'pertanyaanPemantik') {
+                return `1. Apakah kalian tahu tentang ${topic}?\n` +
+                       `2. Di mana kalian biasanya menemukan ${topic}?\n` +
+                       `3. Mengapa kita perlu mempelajari ${topic}?`;
+            }
+            if (type === 'kegiatanInti') {
+                 return `1. Eksplorasi:\n` +
+                        `- Guru menunjukkan media terkait ${topic}.\n` +
+                        `- Siswa mengamati dan bertanya jawab.\n\n` +
+                        `2. Elaborasi (Talaqqiyan Fikriyyan):\n` +
+                        `- Guru menjelaskan materi ${topic} dengan mengaitkan pada ayat Al-Qur'an (Internalisasi).\n` +
+                        `- Siswa berdiskusi dalam kelompok untuk menyelesaikan LKPD.\n` +
+                        `- (Internalisasi): Guru mengingatkan adab berdiskusi (mendengarkan teman).\n\n` +
+                        `3. Konfirmasi:\n` +
+                        `- Kelompok mempresentasikan hasil.\n` +
+                        `- Guru memberi penguatan dan apresiasi "Takbir/Great Job".`;
+            }
+            if (type === 'daftarPustaka') {
+                 const year = new Date().getFullYear();
+                 return `Kementerian Pendidikan Kebudayaan. (2021). Buku Guru & Siswa Kelas ${data.kelas}. Jakarta: Pusat Perbukuan.\n` +
+                        `Tim Guru SDIT. (${year}). Modul Ajar ${data.mapel}. Bogor: Pustaka Insantama.`;
+            }
+            if (type === 'asesmenKeterampilan') {
+                return `Rubrik Penilaian Kinerja:\n` +
+                       `1. Percaya Diri: Berani tampil dan menyampaikan pendapat.\n` +
+                       `2. Pelafalan/Keterampilan Teknis: Mampu melakukan praktik terkait ${topic} dengan benar.\n` +
+                       `3. Kerjasama: Berpartisipasi aktif dalam tugas kelompok.`;
+            }
+            if (type === 'asesmenPengetahuan') {
+                return `Tes Tertulis (Worksheet):\n` +
+                       `1. Menjawab pertanyaan pilihan ganda tentang ${topic}.\n` +
+                       `2. Mengisi kalimat rumpang atau menjodohkan gambar.\n` +
+                       `3. Menjelaskan kembali konsep ${topic} dengan bahasa sendiri.`;
+            }
+            if (type === 'asesmenSpiritual') {
+                return `Observasi Sikap Spiritual:\n` +
+                       `1. Berdoa dengan khusyuk sebelum dan sesudah belajar.\n` +
+                       `2. Mengucapkan kalimat thayyibah (Alhamdulillah/Masya Allah) saat belajar.\n` +
+                       `3. Menunjukkan adab yang baik kepada guru dan teman.`;
+            }
+            if (type === 'pengayaanRemedial') {
+                const tujuan = data.tujuanPembelajaran || "materi yang diajarkan";
+                return `Pengayaan:\n` +
+                       `Peserta didik yang telah mencapai tujuan pembelajaran (nilai > 75) diberikan tugas tambahan untuk:\n` +
+                       `- Menganalisis ${topic} lebih mendalam.\n` +
+                       `- Menjadi tutor sebaya bagi teman yang belum tuntas.\n\n` +
+                       `Remedial:\n` +
+                       `Peserta didik yang belum mencapai tujuan pembelajaran (nilai < 75) diberikan bimbingan ulang berupa:\n` +
+                       `- Penjelasan kembali tentang ${tujuan}.\n` +
+                       `- Latihan soal sederhana terkait konsep dasar ${topic}.`;
+            }
+            return "";
+        };
+
+        const InputField = ({ label, name, value, onChange }) => (
+            <div className="mb-3">
+                <label className="block text-xs font-bold text-gray-600 uppercase mb-1">{label}</label>
+                <input type="text" name={name} value={value} onChange={onChange} className="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-green-600 outline-none" />
+            </div>
+        );
+
+        const TextAreaField = ({ label, name, value, onChange, rows = 3, onGenerate }) => (
+            <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-gray-600 uppercase">{label}</label>
+                    {onGenerate && <button onClick={onGenerate} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold hover:bg-blue-200 flex items-center gap-1"><i className="fas fa-robot"></i> Generate AI</button>}
+                </div>
+                <textarea name={name} value={value} onChange={onChange} rows={rows} className="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-green-600 outline-none"></textarea>
+            </div>
+        );
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            const [formData, setFormData] = useState({
+                penyusun: "Sri Mellia Marinda, S.Si",
+                instansi: "SDIT Insantama Bogor",
+                tahunPenyusunan: "2024",
+                jenjang: "SD",
+                mapel: "Bahasa Inggris",
+                fase: "A",
+                kelas: "II (Dua)",
+                semester: "I (Ganjil)",
+                tahunPelajaran: "2024/2025",
+                unit: "Unit 4: How many books are there?",
+                alokasiWaktu: "2 JP (2 x 35 menit)",
+                
+                kompetensiAwal: "Peserta didik dapat menyebutkan angka 1-20 dalam bahasa Inggris.",
+                profilPancasila: "- Beriman, bertaqwa kepada Tuhan YME (Bersyukur)\n- Bergotong royong\n- Bernalar kritis",
+                sarpras: "Buku, Papan Tulis, Flashcard, Benda konkret di kelas.",
+                targetPeserta: "Peserta Didik Reguler",
+                jumlahPeserta: "28 Siswa",
+                modelPembelajaran: "Inquiry Learning",
+                metodePembelajaran: "Talaqqiyan Fikriyyan, Diskusi, Tanya Jawab",
+
+                tujuanPembelajaran: "Peserta didik mampu menyebutkan nama benda dengan konsep singular dan plural secara tepat.",
+                pemahamanBermakna: "Mengetahui perbedaan jumlah benda (tunggal/jamak) membantu kita lebih teliti dalam menghitung nikmat Allah.",
+                pertanyaanPemantik: "How many books do you have?",
+                
+                pendahuluan: "- Mengucapkan salam dan doa.\n- Memeriksa kehadiran.\n- Apersepsi: Bernyanyi 'Number Song'.\n- Menyampaikan tujuan pembelajaran.",
+                kegiatanInti: "1. Guru memperlihatkan benda (1 buku vs 5 buku).\n2. Siswa mengamati perbedaan pengucapan (Book vs Books).\n3. (Internalisasi): Guru menjelaskan Allah menciptakan segala sesuatu dengan hitungan teliti (QS. Al-Jinn: 28).\n4. Siswa berkelompok menghitung benda di tas masing-masing.\n5. Siswa menuliskan hasil hitungan di LKPD.",
+                penutup: "- Menyimpulkan materi (Singular tambah 's/es').\n- Refleksi perasaan siswa.\n- Doa penutup majelis.",
+
+                asesmenKeterampilan: "",
+                asesmenPengetahuan: "",
+                asesmenSpiritual: "",
+                pengayaanRemedial: "",
+                refleksiGuru: "Bagaimanakah reaksi peserta didik dalam mengikuti pembelajaran ini?\nApakah yang menjadi kendala dalam pembelajaran ini?",
+                
+                bahanAjar: "Flashcard benda-benda kelas.",
+                bacaan: "Buku Paket My Next Words Kelas 2.",
+                glosarium: "Singular: Tunggal.\nPlural: Jamak.",
+                daftarPustaka: "Kementerian Pendidikan. (2021). My Next Words Grade 2.",
+                
+                kepalaSekolah: "Ahmad Fulan, M.Pd.",
+                nipKepsek: "....................",
+                guru: "Sri Mellia Marinda, S.Si",
+                nipGuru: "....................",
+                kota: "Bogor",
+                tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+            });
+
+            const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
+            const handleGenerate = (f) => {
+                const c = generateContentLogic(f, formData);
+                if(c) setFormData(p => ({ ...p, [f]: c }));
+            };
+
+            const downloadPDF = () => {
+                const el = document.getElementById('modul-preview');
+                html2pdf().set({
+                    margin: 0, 
+                    filename: `Modul_Ajar_${formData.mapel}.pdf`, 
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                }).from(el).save();
+            };
+
+            const downloadWord = () => {
+                const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Modul Ajar</title><style>body{font-family:'Times New Roman',serif;}</style></head><body>";
+                const postHtml = "</body></html>";
+                const html = preHtml + document.getElementById('modul-preview').innerHTML + postHtml;
+
+                const blob = new Blob(['\ufeff', html], {
+                    type: 'application/msword'
+                });
+                
+                const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `Modul_Ajar_${formData.mapel || 'Document'}.doc`;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const copyToDocs = () => {
+                const el = document.getElementById('modul-preview');
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('copy');
+                sel.removeAllRanges();
+                window.open('https://docs.new', '_blank');
+                alert("Berhasil disalin! Silakan Paste (Ctrl+V) di Google Docs.");
+            };
+
+            const tabs = [
+                {id:0, icon:'fa-id-card', label:'Identitas'},
+                {id:1, icon:'fa-book', label:'Inti'},
+                {id:2, icon:'fa-check-square', label:'Asesmen'},
+                {id:3, icon:'fa-paperclip', label:'Lampiran'}
+            ];
+
+            return (
+                <div className="flex flex-col h-full">
+                    <header className="bg-primary text-white p-3 shadow-md flex justify-between items-center z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white/20 p-1.5 rounded"><i className="fas fa-file-alt text-lg"></i></div>
+                            <div>
+                                <h1 className="text-base font-bold leading-tight">Modul Ajar Generator</h1>
+                                <p className="text-[10px] text-green-100 font-bold uppercase tracking-wider">Design by Wiyanto</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={downloadWord} className="bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded text-xs font-bold shadow flex gap-2 items-center border border-blue-500"><i className="fas fa-file-word"></i> Word</button>
+                            <button onClick={copyToDocs} className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-xs font-bold shadow flex gap-2 items-center"><i className="fas fa-copy"></i> Copy Docs</button>
+                            <button onClick={downloadPDF} className="bg-white text-green-800 hover:bg-green-50 px-3 py-1.5 rounded text-xs font-bold shadow flex gap-2 items-center"><i className="fas fa-file-pdf"></i> PDF</button>
+                        </div>
+                    </header>
+
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Sidebar Editor */}
+                        <div className="w-96 bg-white border-r flex flex-col shadow-lg z-0">
+                            <div className="flex border-b bg-gray-50">
+                                {tabs.map(t => (
+                                    <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex-1 py-3 text-xs font-bold uppercase flex flex-col items-center gap-1 ${activeTab === t.id ? 'text-primary bg-white border-b-2 border-primary' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                        <i className={`fas ${t.icon} text-sm`}></i> {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                {activeTab === 0 && (
+                                    <div className="animate-fade">
+                                        <InputField label="Penyusun" name="penyusun" value={formData.penyusun} onChange={handleChange} />
+                                        <InputField label="Instansi" name="instansi" value={formData.instansi} onChange={handleChange} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <InputField label="Tahun" name="tahunPenyusunan" value={formData.tahunPenyusunan} onChange={handleChange} />
+                                            <InputField label="Jenjang" name="jenjang" value={formData.jenjang} onChange={handleChange} />
+                                        </div>
+                                        <InputField label="Mata Pelajaran" name="mapel" value={formData.mapel} onChange={handleChange} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <InputField label="Fase" name="fase" value={formData.fase} onChange={handleChange} />
+                                            <InputField label="Kelas" name="kelas" value={formData.kelas} onChange={handleChange} />
+                                        </div>
+                                        <InputField label="Unit/Materi" name="unit" value={formData.unit} onChange={handleChange} />
+                                        <InputField label="Alokasi Waktu" name="alokasiWaktu" value={formData.alokasiWaktu} onChange={handleChange} />
+                                        <div className="border-t my-4"></div>
+                                        <TextAreaField label="Kompetensi Awal" name="kompetensiAwal" value={formData.kompetensiAwal} onChange={handleChange} />
+                                        <TextAreaField label="Profil P3" name="profilPancasila" value={formData.profilPancasila} onChange={handleChange} />
+                                        <TextAreaField label="Sarana Prasarana" name="sarpras" value={formData.sarpras} onChange={handleChange} />
+                                        <InputField label="Target Peserta" name="targetPeserta" value={formData.targetPeserta} onChange={handleChange} />
+                                        <InputField label="Model Pembelajaran" name="modelPembelajaran" value={formData.modelPembelajaran} onChange={handleChange} />
+                                        <InputField label="Metode" name="metodePembelajaran" value={formData.metodePembelajaran} onChange={handleChange} />
+                                    </div>
+                                )}
+                                {activeTab === 1 && (
+                                    <div className="animate-fade">
+                                        <TextAreaField label="Tujuan Pembelajaran" name="tujuanPembelajaran" value={formData.tujuanPembelajaran} onChange={handleChange} />
+                                        <TextAreaField label="Pemahaman Bermakna" name="pemahamanBermakna" value={formData.pemahamanBermakna} onChange={handleChange} onGenerate={()=>handleGenerate('pemahamanBermakna')} />
+                                        <TextAreaField label="Pertanyaan Pemantik" name="pertanyaanPemantik" value={formData.pertanyaanPemantik} onChange={handleChange} onGenerate={()=>handleGenerate('pertanyaanPemantik')} />
+                                        <div className="border-t my-4"></div>
+                                        <TextAreaField label="Pendahuluan" name="pendahuluan" value={formData.pendahuluan} onChange={handleChange} rows={5} />
+                                        <div className="bg-green-50 p-2 rounded border border-green-200 mb-4">
+                                            <TextAreaField label="Inti & Internalisasi" name="kegiatanInti" value={formData.kegiatanInti} onChange={handleChange} rows={10} onGenerate={()=>handleGenerate('kegiatanInti')} />
+                                        </div>
+                                        <TextAreaField label="Penutup" name="penutup" value={formData.penutup} onChange={handleChange} />
+                                    </div>
+                                )}
+                                {activeTab === 2 && (
+                                    <div className="animate-fade">
+                                        <div className="bg-yellow-50 text-yellow-800 text-xs p-2 rounded mb-3">
+                                            <b>Info:</b> Gunakan tombol <b>Generate AI</b> untuk membuat rubrik otomatis.
+                                        </div>
+                                        <TextAreaField label="Instrumen Keterampilan" name="asesmenKeterampilan" value={formData.asesmenKeterampilan} onChange={handleChange} onGenerate={()=>handleGenerate('asesmenKeterampilan')} />
+                                        <TextAreaField label="Instrumen Pengetahuan" name="asesmenPengetahuan" value={formData.asesmenPengetahuan} onChange={handleChange} onGenerate={()=>handleGenerate('asesmenPengetahuan')} />
+                                        <TextAreaField label="Instrumen Spiritual" name="asesmenSpiritual" value={formData.asesmenSpiritual} onChange={handleChange} onGenerate={()=>handleGenerate('asesmenSpiritual')} />
+                                        <div className="border-t my-4"></div>
+                                        <TextAreaField label="Refleksi Guru" name="refleksiGuru" value={formData.refleksiGuru} onChange={handleChange} />
+                                        <TextAreaField label="Pengayaan & Remedial" name="pengayaanRemedial" value={formData.pengayaanRemedial} onChange={handleChange} onGenerate={()=>handleGenerate('pengayaanRemedial')} />
+                                    </div>
+                                )}
+                                {activeTab === 3 && (
+                                    <div className="animate-fade">
+                                        <TextAreaField label="Bahan Ajar" name="bahanAjar" value={formData.bahanAjar} onChange={handleChange} />
+                                        <TextAreaField label="Bacaan Guru/Siswa" name="bacaan" value={formData.bacaan} onChange={handleChange} />
+                                        <TextAreaField label="Glosarium" name="glosarium" value={formData.glosarium} onChange={handleChange} />
+                                        <TextAreaField label="Daftar Pustaka" name="daftarPustaka" value={formData.daftarPustaka} onChange={handleChange} onGenerate={()=>handleGenerate('daftarPustaka')} />
+                                        <div className="border-t my-4"></div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <InputField label="Kota" name="kota" value={formData.kota} onChange={handleChange} />
+                                            <InputField label="Tanggal" name="tanggal" value={formData.tanggal} onChange={handleChange} />
+                                        </div>
+                                        <InputField label="Nama Kepsek" name="kepalaSekolah" value={formData.kepalaSekolah} onChange={handleChange} />
+                                        <InputField label="NIP Kepsek" name="nipKepsek" value={formData.nipKepsek} onChange={handleChange} />
+                                        <InputField label="Nama Guru" name="guru" value={formData.guru} onChange={handleChange} />
+                                        <InputField label="NIP Guru" name="nipGuru" value={formData.nipGuru} onChange={handleChange} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Live Preview */}
+                        <div className="flex-1 bg-gray-200 overflow-y-auto p-8 flex justify-center custom-scrollbar">
+                            <div id="modul-preview" className="paper-preview">
+                                <h1 style={{fontSize: '12pt', fontWeight: 'bold', margin: 0, textAlign: 'center'}}>MODUL AJAR KURIKULUM MERDEKA</h1>
+                                <h2 style={{fontSize: '11pt', fontWeight: 'bold', marginTop: '2px', marginBottom: '10px', textAlign: 'center'}} className="uppercase">
+                                    {formData.mapel} FASE {formData.fase} SD KELAS {formData.kelas}
+                                </h2>
+
+                                {/* TABEL UTAMA - I. INFORMASI UMUM */}
+                                <table border="1" cellPadding="5" cellSpacing="0" style={tableStyle}>
+                                    <thead>
+                                        <tr><th colSpan="2" style={thStyle}>I. INFORMASI UMUM</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {/* A. IDENTITAS MODUL */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>A. IDENTITAS MODUL</td></tr>
+                                        <tr><td style={tdLabelStyle}>Penyusun</td><td style={tdContentStyle}>: {formData.penyusun}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Instansi</td><td style={tdContentStyle}>: {formData.instansi}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Tahun Penyusunan</td><td style={tdContentStyle}>: {formData.tahunPenyusunan}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Jenjang Sekolah</td><td style={tdContentStyle}>: {formData.jenjang}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Mata Pelajaran</td><td style={tdContentStyle}>: {formData.mapel}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Fase / Kelas / Semester</td><td style={tdContentStyle}>: {formData.fase} / {formData.kelas} / {formData.semester}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Unit</td><td style={tdContentStyle}>: {formData.unit}</td></tr>
+                                        <tr><td style={tdLabelStyle}>Alokasi Waktu</td><td style={tdContentStyle}>: {formData.alokasiWaktu}</td></tr>
+
+                                        {/* B. KOMPETENSI AWAL */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>B. KOMPETENSI AWAL</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.kompetensiAwal}</td></tr>
+
+                                        {/* C. PROFIL PANCASILA */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>C. PROFIL PELAJAR PANCASILA</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.profilPancasila}</td></tr>
+
+                                        {/* D. SARANA PRASARANA */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>D. SARANA DAN PRASARANA</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.sarpras}</td></tr>
+
+                                        {/* E. TARGET PESERTA */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>E. TARGET PESERTA DIDIK</td></tr>
+                                        <tr><td colSpan="2" style={tdContentStyle}>{formData.targetPeserta} ({formData.jumlahPeserta})</td></tr>
+
+                                        {/* F. MODEL */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>F. MODEL & METODE PEMBELAJARAN</td></tr>
+                                        <tr><td colSpan="2" style={tdContentStyle}>{formData.modelPembelajaran} / {formData.metodePembelajaran}</td></tr>
+                                    </tbody>
+                                </table>
+
+                                {/* TABEL UTAMA - II. KOMPONEN INTI */}
+                                <table border="1" cellPadding="5" cellSpacing="0" style={tableStyle}>
+                                    <thead>
+                                        <tr><th colSpan="2" style={thStyle}>II. KOMPONEN INTI</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {/* A. TUJUAN (FULL WIDTH) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>A. TUJUAN PEMBELAJARAN</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.tujuanPembelajaran}</td></tr>
+                                        
+                                        {/* B. PEMAHAMAN (FULL WIDTH) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>B. PEMAHAMAN BERMAKNA</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.pemahamanBermakna}</td></tr>
+                                        
+                                        {/* C. PERTANYAAN (FULL WIDTH) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>C. PERTANYAAN PEMANTIK</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.pertanyaanPemantik}</td></tr>
+                                        
+                                        {/* D. KEGIATAN (FULL WIDTH) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>D. KEGIATAN PEMBELAJARAN</td></tr>
+                                        <tr><td colSpan="2" style={tdContentStyle}>
+                                            <div style={{fontWeight: 'bold', marginBottom: '2px'}}>1. Kegiatan Pendahuluan</div>
+                                            <div style={{whiteSpace: 'pre-wrap', marginBottom: '8px', paddingLeft: '8px'}}>{formData.pendahuluan}</div>
+                                            
+                                            <div style={{fontWeight: 'bold', marginBottom: '2px'}}>2. Kegiatan Inti</div>
+                                            <div style={{whiteSpace: 'pre-wrap', marginBottom: '2px', paddingLeft: '8px'}}>{formData.kegiatanInti}</div>
+                                            <div style={{backgroundColor: '#f0fdf4', padding: '5px', borderLeft: '3px solid #16a34a', fontStyle: 'italic', marginLeft: '8px', marginBottom: '8px'}}>Internalisasi Nilai Islam: Integrasi materi dengan ayat Al-Qur'an/Hadits.</div>
+                                            
+                                            <div style={{fontWeight: 'bold', marginBottom: '2px'}}>3. Kegiatan Penutup</div>
+                                            <div style={{whiteSpace: 'pre-wrap', paddingLeft: '8px'}}>{formData.penutup}</div>
+                                        </td></tr>
+
+                                        {/* E. ASESMEN (FULL WIDTH - UPDATED) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>E. ASESMEN</td></tr>
+                                        <tr><td colSpan="2" style={tdContentStyle}>
+                                            <div style={{fontWeight: 'bold', fontStyle: 'italic', marginBottom: '4px'}}>Deskripsi Keterampilan:</div>
+                                            <div style={{whiteSpace: 'pre-wrap', fontSize: '10pt', marginBottom: '8px'}}>{formData.asesmenKeterampilan || "(Klik tombol AI untuk mengisi otomatis)"}</div>
+                                            
+                                            <div style={{fontSize: '10pt', fontWeight: 'bold', marginTop: '6px'}}>1. Rubrik Penilaian Keterampilan</div>
+                                            <table border="1" cellPadding="4" cellSpacing="0" style={{...tableStyle, fontSize: '10pt', marginTop: '2px'}}>
+                                                <thead>
+                                                    <tr>
+                                                        <th rowSpan="2" style={{...rubricThStyle, width: '5%'}}>No</th>
+                                                        <th rowSpan="2" style={rubricThStyle}>Nama Siswa</th>
+                                                        <th colSpan="3" style={rubricThStyle}>Skor Aspek (1-4)</th>
+                                                        <th rowSpan="2" style={{...rubricThStyle, width: '10%'}}>Total</th>
+                                                    </tr>
+                                                    <tr><th style={rubricThStyle}>Percaya Diri</th><th style={rubricThStyle}>Pelafalan</th><th style={rubricThStyle}>Kerjasama</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[1,2,3,4,5].map(n => (
+                                                        <tr key={n}>
+                                                            <td style={rubricTdStyle}>{n}</td><td style={{...rubricTdStyle, textAlign: 'left'}}>..........................</td>
+                                                            <td style={rubricTdStyle}></td><td style={rubricTdStyle}></td><td style={rubricTdStyle}></td><td style={rubricTdStyle}></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+
+                                            <div style={{fontWeight: 'bold', fontStyle: 'italic', marginBottom: '4px', marginTop: '10px'}}>Deskripsi Pengetahuan:</div>
+                                            <div style={{whiteSpace: 'pre-wrap', fontSize: '10pt', marginBottom: '8px'}}>{formData.asesmenPengetahuan || "(Klik tombol AI untuk mengisi otomatis)"}</div>
+
+                                            <div style={{fontSize: '10pt', fontWeight: 'bold', marginTop: '6px'}}>2. Nilai Pengetahuan (Tes Tertulis)</div>
+                                            <table border="1" cellPadding="4" cellSpacing="0" style={{...tableStyle, fontSize: '10pt', marginTop: '2px'}}>
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{...rubricThStyle, width: '5%'}}>No</th>
+                                                        <th style={rubricThStyle}>Nama Siswa</th>
+                                                        <th style={{...rubricThStyle, width: '20%'}}>Nilai (0-100)</th>
+                                                        <th style={{...rubricThStyle, width: '30%'}}>Keterangan (Tuntas/Belum)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[1,2,3].map(n => (
+                                                        <tr key={n}>
+                                                            <td style={rubricTdStyle}>{n}</td><td style={{...rubricTdStyle, textAlign: 'left'}}>..........................</td>
+                                                            <td style={rubricTdStyle}></td><td style={rubricTdStyle}></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </td></tr>
+
+                                        {/* F. REFLEKSI GURU (FULL WIDTH - UPDATED) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>F. REFLEKSI GURU</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.refleksiGuru}</td></tr>
+
+                                        {/* G. PENGAYAAN DAN REMEDIAL (FULL WIDTH - UPDATED) */}
+                                        <tr><td colSpan="2" style={subHeaderStyle}>G. PENGAYAAN DAN REMEDIAL</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.pengayaanRemedial || "(Klik tombol AI untuk mengisi otomatis berdasarkan tujuan)"}</td></tr>
+                                    </tbody>
+                                </table>
+
+                                {/* TABEL UTAMA - III. LAMPIRAN (FULL WIDTH ROWS) */}
+                                <table border="1" cellPadding="5" cellSpacing="0" style={tableStyle}>
+                                    <thead>
+                                        <tr><th colSpan="2" style={thStyle}>III. LAMPIRAN</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td colSpan="2" style={subHeaderStyle}>A. LEMBAR BAHAN AJAR</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.bahanAjar}</td></tr>
+                                        
+                                        <tr><td colSpan="2" style={subHeaderStyle}>B. BAHAN BACAAN GURU & PESERTA DIDIK</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.bacaan}</td></tr>
+                                        
+                                        <tr><td colSpan="2" style={subHeaderStyle}>C. GLOSARIUM</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.glosarium}</td></tr>
+                                        
+                                        <tr><td colSpan="2" style={subHeaderStyle}>D. DAFTAR PUSTAKA</td></tr>
+                                        <tr><td colSpan="2" style={{...tdContentStyle, whiteSpace: 'pre-wrap'}}>{formData.daftarPustaka}</td></tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Tanda Tangan Section - Menggunakan Tabel agar Rapi di Word */}
+                                <table style={{width: '100%', border: 'none', marginTop: '30px', pageBreakInside: 'avoid'}}>
+                                    <tbody>
+                                        <tr>
+                                            {/* Kiri: Kepala Sekolah */}
+                                            <td style={{width: '50%', textAlign: 'center', verticalAlign: 'top', border: 'none', padding: '0'}}>
+                                                <p style={{margin: '0 0 5px 0'}}>Mengetahui,</p>
+                                                <p style={{margin: '0'}}>Kepala Sekolah</p>
+                                                <div style={{height: '60px'}}></div> {/* Space TTD */}
+                                                <p style={{margin: '0', fontWeight: 'bold', textDecoration: 'underline'}}>{formData.kepalaSekolah}</p>
+                                                <p style={{margin: '0'}}>NIP. {formData.nipKepsek}</p>
+                                            </td>
+                                            
+                                            {/* Kanan: Guru */}
+                                            <td style={{width: '50%', textAlign: 'center', verticalAlign: 'top', border: 'none', padding: '0'}}>
+                                                <p style={{margin: '0 0 5px 0'}}>{formData.kota}, {formData.tanggal}</p>
+                                                <p style={{margin: '0'}}>Guru Mata Pelajaran</p>
+                                                <div style={{height: '60px'}}></div> {/* Space TTD */}
+                                                <p style={{margin: '0', fontWeight: 'bold', textDecoration: 'underline'}}>{formData.guru}</p>
+                                                <p style={{margin: '0'}}>NIP. {formData.nipGuru}</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
